@@ -2,19 +2,17 @@
 #title          :expandfs.sh
 #description    :This script is used to expand filesystem without the need to use raspi-config.
 #author			:Bruno Fernandes {brunof@fe.up.pt, 1080557@isep.ipp.pt}
-#date           :25-02-2016
+#date           :28-02-2016
 #version        :1
 #usage			:expandfs.sh
 #notes          : This application searches for the partition where root filesystem is installed.
 #==============================================================================
 
-# Filenames Here
-DEV_PATH="/dev/"						# Path were SD Cards are usually mounted on OS
+# Device prefix
+DEV_PATH="/dev/"
 
-##############################
-
-# ROOT_PART=$(grep -Po '(?<=root=/dev/).*' /proc/cmdline | awk '{print $1}')		# ROOT_PART=$(readlink /dev/root)
-ROOT_PART=$(mount | sed -n 's|^/dev/\(.*\) on / .*|\1|p')
+# Read the root partition
+ROOT_PART=$(mount | sed -n 's|^/dev/\(.*\) on / .*|\1|p')       # Replacement for the "readlink /dev/root"
 PART_NUM=${ROOT_PART#mmcblk0p}
 
 if [ "$PART_NUM" = "$ROOT_PART" ]; then
@@ -29,7 +27,6 @@ if [ "$LAST_PART_NUM" != "$PART_NUM" ]; then
 fi
 
 # Get the starting offset of the root partition
-# PART_START=$(parted /dev/mmcblk0 -ms unit s p | grep "^${PART_NUM}" | cut -f 2 -d: | cut -f 1 -d 's')
 PART_START=$(sudo parted /dev/mmcblk0 -ms unit s p | grep "^${PART_NUM}" | cut -f 2 -d: | sed 's/[^0-9]//g')
 [ "$PART_START" ] || return 1
 
@@ -46,7 +43,7 @@ p
 w
 EOF
 
-# now set up an init.d script
+# This script is to update partition tables in kernel and it will run only once on boot "runtime 2" and after that it will remove itself.
 sudo su -c cat << EOF > /etc/init.d/resize2fs_once &&
 #!/bin/sh
 ### BEGIN INIT INFO
@@ -77,25 +74,7 @@ esac
 EOF
 sudo chmod +x /etc/init.d/resize2fs_once &&
 sudo update-rc.d resize2fs_once defaults &&
-
 echo ""
 echo "Root partition has been resized."
 echo "The filesystem will be enlarged upon the next reboot"
-exit
-
-# Creating the symlink allows File Exapanding from raspi-config possible, however when it reboots for some reason it does not update the partition table in kernel. Hence I have to type "resize2fs /dev/mmcblk0p2" after reboot. This is more a problem than a solution.
-
-
-# sudo su
-# cd /
-# ln -s mmcblk0p2 /dev/root
-# exit
-
-
-
-# sudo su
-# cd /
-# sudo ln -snf mmcblk0p2 /dev/root
-# exit
-
-
+exit $?
