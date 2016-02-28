@@ -8,6 +8,18 @@
 #notes          : This application searches for the partition where root filesystem is installed.
 #==============================================================================
 
+# Check if user has sudo previledges
+amisudo() {
+    iamsudo=$(sudo -n uptime 2>&1 | grep "load" | wc -l)
+    if [ ${iamsudo} -le 0 ]; then
+        echo "Make sure you have super user privileges!"
+        echo "Exited."
+        exit 1
+    fi
+}
+
+amisudo
+
 # Device prefix
 DEV_PATH="/dev/"
 
